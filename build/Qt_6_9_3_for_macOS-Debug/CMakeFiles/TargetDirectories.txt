@@ -1,0 +1,9 @@
+/Users/brayanpinel/Documents/Laboratorio6/Lab6/build/Qt_6_9_3_for_macOS-Debug/CMakeFiles/Lab6.dir
+/Users/brayanpinel/Documents/Laboratorio6/Lab6/build/Qt_6_9_3_for_macOS-Debug/CMakeFiles/edit_cache.dir
+/Users/brayanpinel/Documents/Laboratorio6/Lab6/build/Qt_6_9_3_for_macOS-Debug/CMakeFiles/rebuild_cache.dir
+/Users/brayanpinel/Documents/Laboratorio6/Lab6/build/Qt_6_9_3_for_macOS-Debug/CMakeFiles/list_install_components.dir
+/Users/brayanpinel/Documents/Laboratorio6/Lab6/build/Qt_6_9_3_for_macOS-Debug/CMakeFiles/install.dir
+/Users/brayanpinel/Documents/Laboratorio6/Lab6/build/Qt_6_9_3_for_macOS-Debug/CMakeFiles/install/local.dir
+/Users/brayanpinel/Documents/Laboratorio6/Lab6/build/Qt_6_9_3_for_macOS-Debug/CMakeFiles/install/strip.dir
+/Users/brayanpinel/Documents/Laboratorio6/Lab6/build/Qt_6_9_3_for_macOS-Debug/CMakeFiles/Lab6_autogen_timestamp_deps.dir
+/Users/brayanpinel/Documents/Laboratorio6/Lab6/build/Qt_6_9_3_for_macOS-Debug/CMakeFiles/Lab6_autogen.dir
