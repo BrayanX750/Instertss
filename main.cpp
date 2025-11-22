@@ -1,262 +1,239 @@
-#include <chrono>
-#include <dirent.h>
-#include <fstream>
 #include <iostream>
-#include <string>
-#include <sys/stat.h>
+#include <fstream>
 #include <vector>
+#include <string>
+#include <filesystem>
+#include <chrono>
 
-#define MEASURE_START auto __start = std::chrono::high_resolution_clock::now();
-#define MEASURE_END auto __end = std::chrono::high_resolution_clock::now();
-#define MEASURE_MICROS std::chrono::duration_cast<std::chrono::microseconds>(__end - __start).count()
+#define TIME_START auto __inicio = std::chrono::high_resolution_clock::now();
+#define TIME_END auto __fin = std::chrono::high_resolution_clock::now();
+#define TIME_MICROS std::chrono::duration_cast<std::chrono::microseconds>(__fin - __inicio).count()
 
-void insertionSort(std::vector<int> &data) {
-    for (std::size_t i = 1; i < data.size(); ++i) {
-        int key = data[i];
-        std::size_t j = i;
-        while (j > 0 && data[j - 1] > key) {
-            data[j] = data[j - 1];
-            --j;
+
+void insertionSort(std::vector<int> &arr) {
+    for (size_t i = 1; i < arr.size(); i++) {
+        int actual = arr[i];
+        int j = static_cast<int>(i - 1);
+
+        while (j >= 0 && arr[j] > actual) {
+            arr[j + 1] = arr[j];
+            j--;
         }
-        data[j] = key;
+
+        arr[j + 1] = actual;
     }
 }
 
-void merge(std::vector<int> &data, std::size_t left, std::size_t mid, std::size_t right) {
-    std::vector<int> temp;
-    temp.reserve(right - left + 1);
 
-    std::size_t i = left;
-    std::size_t j = mid + 1;
+void merge(std::vector<int> &arr, int left, int mid, int right) {
+    int n1 = mid - left + 1;
+    int n2 = right - mid;
 
-    while (i <= mid && j <= right) {
-        if (data[i] <= data[j]) {
-            temp.push_back(data[i]);
-            ++i;
-        } else {
-            temp.push_back(data[j]);
-            ++j;
-        }
+    std::vector<int> L(n1);
+    std::vector<int> R(n2);
+
+    for (int i = 0; i < n1; i++) L[i] = arr[left + i];
+    for (int j = 0; j < n2; j++) R[j] = arr[mid + 1 + j];
+
+    int i = 0, j = 0, k = left;
+
+    while (i < n1 && j < n2) {
+        if (L[i] <= R[j]) arr[k++] = L[i++];
+        else arr[k++] = R[j++];
     }
 
-    while (i <= mid) {
-        temp.push_back(data[i]);
-        ++i;
-    }
-
-    while (j <= right) {
-        temp.push_back(data[j]);
-        ++j;
-    }
-
-    for (std::size_t k = 0; k < temp.size(); ++k) {
-        data[left + k] = temp[k];
-    }
+    while (i < n1) arr[k++] = L[i++];
+    while (j < n2) arr[k++] = R[j++];
 }
 
-void mergeSortImpl(std::vector<int> &data, std::size_t left, std::size_t right) {
-    if (left >= right) {
-        return;
-    }
-    std::size_t mid = left + (right - left) / 2;
-    mergeSortImpl(data, left, mid);
-    mergeSortImpl(data, mid + 1, right);
-    merge(data, left, mid, right);
+void mergeSort(std::vector<int> &arr, int left, int right) {
+    if (left >= right) return;
+
+    int mid = (left + right) / 2;
+
+    mergeSort(arr, left, mid);
+    mergeSort(arr, mid + 1, right);
+    merge(arr, left, mid, right);
 }
 
-void mergeSort(std::vector<int> &data) {
-    if (!data.empty()) {
-        mergeSortImpl(data, 0, data.size() - 1);
+
+bool cargarVector(std::vector<int> &datos, const std::string &ruta) {
+    std::ifstream archivo(ruta);
+    if (!archivo.is_open()) return false;
+
+    int numero;
+    while (archivo >> numero) {
+        datos.push_back(numero);
     }
+
+    return true;
 }
 
-std::vector<std::string> listFiles(const std::string &path) {
-    std::vector<std::string> files;
-    DIR *dir = opendir(path.c_str());
-    if (!dir) {
-        return files;
-    }
 
-    dirent *entry = nullptr;
-    while ((entry = readdir(dir)) != nullptr) {
-        std::string name = entry->d_name;
-        if (entry->d_type == DT_REG && !name.empty() && name[0] != '.') {
-            files.push_back(name);
-        }
-    }
+void guardarArchivoOrdenado(const std::vector<int> &datos, long long tiempo,
+                            const std::string &nombre, const std::string &algoritmo) {
+    std::string salida = "ordenados/" + nombre;
 
-    closedir(dir);
-    return files;
+    if (algoritmo == "insertion") salida.insert(salida.size() - 4, "_insert");
+    else salida.insert(salida.size() - 4, "_merge");
+
+    std::ofstream archivo(salida);
+
+
+    for (size_t i = 0; i < datos.size(); i++) {
+        archivo << datos[i];
+        if (i + 1 < datos.size()) archivo << " ";
+    }
+    archivo << "\n";
+
+
+    archivo << tiempo;
 }
 
-std::vector<int> readNumbersFromFile(const std::string &filepath) {
-    std::vector<int> numbers;
-    std::ifstream in(filepath);
-    if (!in) {
-        std::cerr << "No se pudo abrir el archivo: " << filepath << "\n";
-        return numbers;
-    }
 
-    int value = 0;
-    while (in >> value) {
-        numbers.push_back(value);
-    }
-    return numbers;
-}
+std::vector<std::string> listarArchivos(const std::string &carpeta) {
+    std::vector<std::string> lista;
 
-std::string buildOutputName(const std::string &inputName, const std::string &suffix) {
-    std::size_t lastDot = inputName.rfind('.');
-    if (lastDot == std::string::npos) {
-        return inputName + suffix;
-    }
-
-    std::string base = inputName.substr(0, lastDot);
-    std::string extension = inputName.substr(lastDot);
-    return base + suffix + extension;
-}
-
-long long sortNumbers(std::vector<int> &numbers, int algorithm) {
-    MEASURE_START
-        if (algorithm == 1) {
-        insertionSort(numbers);
-    } else {
-        mergeSort(numbers);
-    }
-    MEASURE_END
-        return MEASURE_MICROS;
-}
-
-void ensureDirectory(const std::string &path) {
-    struct stat info;
-    if (stat(path.c_str(), &info) != 0 || !(info.st_mode & S_IFDIR)) {
-        mkdir(path.c_str(), 0755);
-    }
-}
-
-void saveOrderedFile(const std::string &outputPath, const std::vector<int> &numbers, long long elapsedMicros) {
-    std::ofstream out(outputPath);
-    if (!out) {
-        std::cerr << "No se pudo escribir el archivo: " << outputPath << "\n";
-        return;
-    }
-
-    for (std::size_t i = 0; i < numbers.size(); ++i) {
-        out << numbers[i];
-        if (i + 1 < numbers.size()) {
-            out << ' ';
+    for (const auto &file : std::filesystem::directory_iterator(carpeta)) {
+        if (file.is_regular_file()) {
+            lista.push_back(file.path().filename().string());
         }
     }
-    out << "\n" << elapsedMicros << "\n";
-    std::cout << "Archivo generado: " << outputPath << "\n";
+
+    return lista;
 }
 
-void showFileContent(const std::string &filepath) {
-    std::ifstream in(filepath);
-    if (!in) {
-        std::cerr << "No se pudo abrir el archivo: " << filepath << "\n";
-        return;
-    }
-
-    std::string line;
-    int lineNumber = 0;
-    while (std::getline(in, line)) {
-        if (lineNumber == 0) {
-            std::cout << "Números ordenados: " << line << "\n";
-        } else if (lineNumber == 1) {
-            std::cout << "Tiempo de ejecución (microsegundos): " << line << "\n";
-        }
-        ++lineNumber;
-    }
-}
-
-void listAvailableFiles(const std::vector<std::string> &files, const std::string &label) {
-    std::cout << "Archivos disponibles en '" << label << "':\n";
-    if (files.empty()) {
-        std::cout << "  (No hay archivos disponibles)\n";
-        return;
-    }
-    for (std::size_t i = 0; i < files.size(); ++i) {
-        std::cout << "[" << (i + 1) << "] " << files[i] << '\n';
-    }
-}
 
 int main() {
-    const std::string inputDir = "arreglos";
-    const std::string outputDir = "ordenados";
-
-    ensureDirectory(inputDir);
-    ensureDirectory(outputDir);
-
-    int option = 0;
     while (true) {
-        std::cout << "\nMenú principal\n";
+        std::cout << "\n========== MENU PRINCIPAL ==========\n";
         std::cout << "1. Listar archivos en 'arreglos'\n";
-        std::cout << "2. Seleccionar archivo, ordenar y guardar en 'ordenados'\n";
-        std::cout << "3. Ver contenido de un archivo ordenado\n";
+        std::cout << "2. Seleccionar archivo, ordenar y guardar\n";
+        std::cout << "3. Ver contenido de archivo ordenado\n";
         std::cout << "4. Salir\n";
-        std::cout << "Seleccione una opción: ";
-        std::cin >> option;
+        std::cout << "Ingrese una opcion: ";
 
-        if (option == 4 || std::cin.fail()) {
-            std::cout << "Saliendo...\n";
+        int opcion;
+        std::cin >> opcion;
+
+
+        if (opcion == 1) {
+            auto archivos = listarArchivos("arreglos");
+
+            std::cout << "\nArchivos disponibles en 'arreglos':\n";
+            for (size_t i = 0; i < archivos.size(); i++) {
+                std::cout << "[" << i + 1 << "] " << archivos[i] << "\n";
+            }
+        }
+
+
+        else if (opcion == 2) {
+            auto archivos = listarArchivos("arreglos");
+
+            if (archivos.empty()) {
+                std::cout << "No hay archivos en la carpeta.\n";
+                continue;
+            }
+
+            std::cout << "\nArchivos disponibles:\n";
+            for (size_t i = 0; i < archivos.size(); i++) {
+                std::cout << "[" << i + 1 << "] " << archivos[i] << "\n";
+            }
+
+            std::cout << "\nSeleccione archivo por numero: ";
+            int eleccion;
+            std::cin >> eleccion;
+
+            if (eleccion < 1 || eleccion > (int)archivos.size()) {
+                std::cout << "Numero invalido.\n";
+                continue;
+            }
+
+            std::string archivoElegido = archivos[eleccion - 1];
+
+            std::cout << "\nSeleccione algoritmo:\n";
+            std::cout << "1. Insertion Sort\n";
+            std::cout << "2. Merge Sort\n";
+            std::cout << "Elija: ";
+
+            int alg;
+            std::cin >> alg;
+
+            std::vector<int> datos;
+            std::string ruta = "arreglos/" + archivoElegido;
+
+            if (!cargarVector(datos, ruta)) {
+                std::cout << "Error al leer el archivo.\n";
+                continue;
+            }
+
+            TIME_START
+
+                if (alg == 1) {
+                insertionSort(datos);
+                TIME_END
+                    guardarArchivoOrdenado(datos, TIME_MICROS, archivoElegido, "insertion");
+                std::cout << "\nArchivo generado con Insertion Sort.\n";
+            }
+            else if (alg == 2) {
+                mergeSort(datos, 0, datos.size() - 1);
+                TIME_END
+                    guardarArchivoOrdenado(datos, TIME_MICROS, archivoElegido, "merge");
+                std::cout << "\nArchivo generado con Merge Sort.\n";
+            }
+            else {
+                std::cout << "Algoritmo invalido.\n";
+                continue;
+            }
+        }
+
+
+        else if (opcion == 3) {
+            auto archivos = listarArchivos("ordenados");
+
+            if (archivos.empty()) {
+                std::cout << "No hay archivos en la carpeta 'ordenados'.\n";
+                continue;
+            }
+
+            std::cout << "\nArchivos disponibles en 'ordenados':\n";
+            for (size_t i = 0; i < archivos.size(); i++) {
+                std::cout << "[" << i + 1 << "] " << archivos[i] << "\n";
+            }
+
+            std::cout << "\nSeleccione archivo por numero: ";
+            int eleccion;
+            std::cin >> eleccion;
+
+            if (eleccion < 1 || eleccion > (int)archivos.size()) {
+                std::cout << "Numero invalido.\n";
+                continue;
+            }
+
+            std::ifstream archivo("ordenados/" + archivos[eleccion - 1]);
+
+            if (!archivo.is_open()) {
+                std::cout << "No se pudo abrir el archivo.\n";
+                continue;
+            }
+
+            std::string linea;
+
+            std::cout << "\nContenido del archivo:\n";
+
+            while (std::getline(archivo, linea)) {
+                std::cout << linea << "\n";
+            }
+        }
+
+
+        else if (opcion == 4) {
+            std::cout << "Saliendo del programa...\n";
             break;
         }
 
-        if (option == 1) {
-            std::vector<std::string> files = listFiles(inputDir);
-            listAvailableFiles(files, inputDir);
-        } else if (option == 2) {
-            std::vector<std::string> files = listFiles(inputDir);
-            listAvailableFiles(files, inputDir);
-            if (files.empty()) {
-                continue;
-            }
-
-            std::cout << "Seleccione un archivo por número: ";
-            std::size_t selection = 0;
-            std::cin >> selection;
-            if (selection == 0 || selection > files.size()) {
-                std::cout << "Selección inválida.\n";
-                continue;
-            }
-
-            std::cout << "Elija algoritmo:\n1. Insertion Sort\n2. Merge Sort\nOpción: ";
-            int algOption = 0;
-            std::cin >> algOption;
-            if (algOption != 1 && algOption != 2) {
-                std::cout << "Selección inválida.\n";
-                continue;
-            }
-
-            std::string inputPath = inputDir + "/" + files[selection - 1];
-            std::vector<int> numbers = readNumbersFromFile(inputPath);
-            if (numbers.empty()) {
-                std::cout << "El archivo no contiene números o no se pudo leer.\n";
-                continue;
-            }
-
-            long long elapsed = sortNumbers(numbers, algOption);
-            std::string suffix = (algOption == 1) ? "_insert" : "_merge";
-            std::string outputName = buildOutputName(files[selection - 1], suffix);
-            std::string outputPath = outputDir + "/" + outputName;
-            saveOrderedFile(outputPath, numbers, elapsed);
-        } else if (option == 3) {
-            std::vector<std::string> files = listFiles(outputDir);
-            listAvailableFiles(files, outputDir);
-            if (files.empty()) {
-                continue;
-            }
-            std::cout << "Seleccione un archivo por número: ";
-            std::size_t selection = 0;
-            std::cin >> selection;
-            if (selection == 0 || selection > files.size()) {
-                std::cout << "Selección inválida.\n";
-                continue;
-            }
-            std::string filepath = outputDir + "/" + files[selection - 1];
-            showFileContent(filepath);
-        } else {
-            std::cout << "Opción no reconocida.\n";
+        else {
+            std::cout << "Opcion no valida.\n";
         }
     }
 
